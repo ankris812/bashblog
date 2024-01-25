@@ -72,7 +72,8 @@ global_variables() {
     # Non blogpost files. Bashblog will ignore these. Useful for static pages and custom content
     # Add them as a bash array, e.g. non_blogpost_files=("news.html" "test.html")
     non_blogpost_files=()
-
+    # site map file
+    blog_sitemap="sitemap.xml"
     # feed file (rss in this case)
     blog_feed="feed.rss"
     number_of_feed_articles="10"
@@ -145,7 +146,8 @@ global_variables() {
     date_format_full="%a, %d %b %Y %H:%M:%S %z"
     date_format_timestamp="%Y%m%d%H%M.%S"
     date_allposts_header="%B %Y"
-
+    # Data format for sitemap
+    date_format_sitemap="%Y/%m/%d"
     # Perform the post title -> filename conversion
     # Experts only. You may need to tune the locales too
     # Leave empty for no conversion, which is not recommended
@@ -901,7 +903,30 @@ list_posts() {
 
     echo -e "$lines" | column -t -s "#"
 }
-
+# generate sitemap
+make_sitemap() {
+    echo -n "Building Sitemap "
+    rm "$blog_sitemap"
+    sitemapfile=$blog_sitemap.$RANDOM
+    while [[ -f $blog_sitemap ]]; do sitemapfile=$blog_sitemap.$RANDOM; done
+    {
+        echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        echo "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">"
+        echo -n "." 1>&3
+        while IFS='' read -r i; do
+            echo -n "." 1>&3
+            echo "<url>"
+            echo "<loc>$global_url/${i#./}</loc>"
+            echo "<lastmod>$(LC_ALL=C date -r "$i" +"$date_format_sitemap")</lastmod>"
+            echo "</url>"
+        done < <(ls -t ./*.html)
+        echo "</urlset>"
+    } 3>&1 >"$sitemapfile"
+    echo ""
+    
+    mv "$sitemapfile" "$blog_sitemap"
+    chmod 644 $blog_sitemap
+}
 # Generate the feed file
 make_rss() {
     echo -n "Making RSS "
@@ -1201,6 +1226,7 @@ do_main() {
     rebuild_index
     all_posts
     all_tags
+    make_sitemap
     make_rss
     delete_includes
 }
